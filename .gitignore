@@ -1,0 +1,10 @@
+build
+migrations
+node_modules
+.env
+*.DS_Store
+.tsbuilt
+yarn-error.log
+.build
+.npmignore
+StakedLPToken01Flattened.sol
