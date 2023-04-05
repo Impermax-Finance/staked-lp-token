@@ -12,6 +12,8 @@ interface IMasterChefRewardRate {
 	function plsPerSecond() external view returns (uint256);
 	function cakePerSecond() external view returns (uint256);	
 	function zyberPerSec() external view returns (uint256);	
+	function arxPerSec() external view returns (uint256);	
+	function WETHPerSec() external view returns (uint256);	
 	
 	function rewardPerBlock() external view returns (uint256);	
 	function rewardsPerBlock() external view returns (uint256);	
