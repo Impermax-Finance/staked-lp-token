@@ -778,25 +778,31 @@ contract StakedLPTokenSolidlyBase1 is PoolToken {
 		return _getReward();
 	}
 
-	function _swapWithBestBridge() internal view returns (address) {
+	function _swapWithBestBridge() internal view returns (address bestBridgeToken, uint bestIndex) {
 		for (uint i = 0; i < bridgeTokens.length; i++) {
-			if (token0 == bridgeTokens[i] || token1 == bridgeTokens[i]) { 
-				return bridgeTokens[i];
-			}
+			if (token0 == bridgeTokens[i]) return (bridgeTokens[i], 0);
+			if (token1 == bridgeTokens[i]) return (bridgeTokens[i], 1);
 		}
-		address bestBridgeToken = bridgeTokens[0];
+		(uint256 r0, uint256 r1,) = IUniswapV2Pair(underlying).getReserves();
+		address[2] memory tokens = [token0, token1];
+		uint[2] memory reserves = [r0, r1];
+		bestBridgeToken = bridgeTokens[0];
+		bestIndex = 0;
 		uint bestLiquidity = 0;
 		address pairFactory = IBaseV1Router01(router).factory();
-		for (uint i = 0; i < bridgeTokens.length; i++) {	
-			address pair = IBaseV1Factory(pairFactory).getPair(token0, bridgeTokens[i], false);
-			if (pair == address(0)) continue;
-			uint liquidity = token0.balanceOf(pair);
-			if (liquidity > bestLiquidity) {
-				bestLiquidity = liquidity;
-				bestBridgeToken = bridgeTokens[i];
+		for (uint i = 0; i < bridgeTokens.length; i++) {
+			for (uint j = 0; j < 2; j++) {
+				address pair = IBaseV1Factory(pairFactory).getPair(tokens[j], bridgeTokens[i], false);
+				if (pair == address(0)) continue;
+				uint liquidity = tokens[j].balanceOf(pair).mul(1e18).div(reserves[j]);
+				if (liquidity > bestLiquidity) {
+					bestLiquidity = liquidity;
+					bestIndex = j;
+					bestBridgeToken = bridgeTokens[i];
+				}
 			}
 		}
-		return bestBridgeToken;
+		return (bestBridgeToken, bestIndex);
 	}
 
 	function reinvest() external nonReentrant update {
@@ -814,14 +820,14 @@ contract StakedLPTokenSolidlyBase1 is PoolToken {
 			(tokenA, tokenB) = token0 == rewardsToken ? (token0, token1) : (token1, token0);
 		}
 		else {
-			address bridgeToken = _swapWithBestBridge();
+			(address bridgeToken, uint index) = _swapWithBestBridge();
 			swapExactTokensForTokens(rewardsToken, bridgeToken, reward.sub(bounty));
 			if (token0 == bridgeToken || token1 == bridgeToken) { 
 				(tokenA, tokenB) = token0 == bridgeToken ? (token0, token1) : (token1, token0);
 			}
 			else {
-				swapExactTokensForTokens(bridgeToken, token0, bridgeToken.myBalance());
-				(tokenA, tokenB) = (token0, token1);
+				swapExactTokensForTokens(bridgeToken, index == 0 ? token0 : token1, bridgeToken.myBalance());
+				(tokenA, tokenB) = index == 0 ? (token0, token1) : (token1, token0);
 			}
 		}
 		// 4. Convert tokenA to LP Token underlyings.
