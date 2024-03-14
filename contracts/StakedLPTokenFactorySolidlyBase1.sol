@@ -2,7 +2,6 @@ pragma solidity =0.5.16;
 
 import "./StakedLPTokenSolidlyBase1.sol";
 import "./interfaces/IUniswapV2Pair.sol";
-import "./interfaces/IUniswapV2Router01.sol";
 
 contract StakedLPTokenFactorySolidlyBase1 {
 	address public router;
