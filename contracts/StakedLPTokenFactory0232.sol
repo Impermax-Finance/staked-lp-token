@@ -3,7 +3,10 @@ pragma solidity =0.5.16;
 import "./StakedLPToken0232.sol";
 import "./interfaces/IMasterChef0232.sol";
 import "./interfaces/IUniswapV2Pair.sol";
-import "./interfaces/IUniswapV2Router01.sol";
+
+interface IRouter {
+    function wNative() external view returns (address);
+}
 
 contract StakedLPTokenFactory0232 {
     address public router;
@@ -30,7 +33,7 @@ contract StakedLPTokenFactory0232 {
         router = _router;
         masterChef = _masterChef;
         rewardsToken = _rewardsToken;
-        WETH = IUniswapV2Router01(_router).WETH();
+        WETH = IRouter(_router).wNative();
     }
 
     function allStakedLPTokenLength() external view returns (uint) {
