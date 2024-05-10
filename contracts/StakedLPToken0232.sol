@@ -6,6 +6,7 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/ISimpleRewarder.sol";
 import "./interfaces/IUniswapV2Router01.sol";
 import "./interfaces/IUniswapV2Pair.sol";
+import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IWETH.sol";
 import "./libraries/SafeToken.sol";
 import "./libraries/Math.sol";
@@ -23,6 +24,7 @@ contract StakedLPToken0232 is IUniswapV2Pair, PoolToken {
     address public masterChef;
     address public rewardsToken;
     address public WETH;
+    address[] public bridgeTokens;
     uint256 public constant REINVEST_BOUNTY = 0.02e18;
 
     event Reinvest(address indexed caller, uint256 reward, uint256 bounty);
@@ -35,7 +37,8 @@ contract StakedLPToken0232 is IUniswapV2Pair, PoolToken {
         address _router,
         address _masterChef,
         address _rewardsToken,
-        address _WETH
+        address _WETH,
+        address[] calldata _bridgeTokens
     ) external {
         require(factory == address(0), "StakedLPToken: FACTORY_ALREADY_SET"); // sufficient check
         factory = msg.sender;
@@ -48,6 +51,7 @@ contract StakedLPToken0232 is IUniswapV2Pair, PoolToken {
         masterChef = _masterChef;
         rewardsToken = _rewardsToken;
         WETH = _WETH;
+        bridgeTokens = _bridgeTokens;
         _rewardsToken.safeApprove(address(_router), uint256(-1));
         _WETH.safeApprove(address(_router), uint256(-1));
         _underlying.safeApprove(address(_masterChef), uint256(-1));
@@ -207,6 +211,42 @@ contract StakedLPToken0232 is IUniswapV2Pair, PoolToken {
         return _getReward();
     }
 
+    function _swapWithBestBridge()
+        internal
+        view
+        returns (address bestBridgeToken, uint bestIndex)
+    {
+        for (uint i = 0; i < bridgeTokens.length; i++) {
+            if (token0 == bridgeTokens[i]) return (bridgeTokens[i], 0);
+            if (token1 == bridgeTokens[i]) return (bridgeTokens[i], 1);
+        }
+        (uint256 r0, uint256 r1, ) = IUniswapV2Pair(underlying).getReserves();
+        address[2] memory tokens = [token0, token1];
+        uint[2] memory reserves = [r0, r1];
+        bestBridgeToken = bridgeTokens[0];
+        bestIndex = 0;
+        uint bestLiquidity = 0;
+        address pairFactory = IUniswapV2Router01(router).factory();
+        for (uint i = 0; i < bridgeTokens.length; i++) {
+            for (uint j = 0; j < 2; j++) {
+                address pair = IUniswapV2Factory(pairFactory).getPair(
+                    tokens[j],
+                    bridgeTokens[i]
+                );
+                if (pair == address(0)) continue;
+                uint liquidity = tokens[j].balanceOf(pair).mul(1e18).div(
+                    reserves[j]
+                );
+                if (liquidity > bestLiquidity) {
+                    bestLiquidity = liquidity;
+                    bestIndex = j;
+                    bestBridgeToken = bridgeTokens[i];
+                }
+            }
+        }
+        return (bestBridgeToken, bestIndex);
+    }
+
     function reinvest() external nonReentrant update {
         require(msg.sender == tx.origin);
         // 1. Withdraw all the rewards.
@@ -223,14 +263,26 @@ contract StakedLPToken0232 is IUniswapV2Pair, PoolToken {
                 ? (token0, token1)
                 : (token1, token0);
         } else {
-            swapExactTokensForTokens(rewardsToken, WETH, reward.sub(bounty));
-            if (token0 == WETH || token1 == WETH) {
-                (tokenA, tokenB) = token0 == WETH
+            (address bridgeToken, uint index) = _swapWithBestBridge();
+
+            swapExactTokensForTokens(
+                rewardsToken,
+                bridgeToken,
+                reward.sub(bounty)
+            );
+            if (token0 == bridgeToken || token1 == bridgeToken) {
+                (tokenA, tokenB) = token0 == bridgeToken
                     ? (token0, token1)
                     : (token1, token0);
             } else {
-                swapExactTokensForTokens(WETH, token0, WETH.myBalance());
-                (tokenA, tokenB) = (token0, token1);
+                swapExactTokensForTokens(
+                    bridgeToken,
+                    index == 0 ? token0 : token1,
+                    bridgeToken.myBalance()
+                );
+                (tokenA, tokenB) = index == 0
+                    ? (token0, token1)
+                    : (token1, token0);
             }
         }
         // 4. Convert tokenA to LP Token underlyings.

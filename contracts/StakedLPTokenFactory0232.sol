@@ -12,6 +12,7 @@ contract StakedLPTokenFactory0232 {
     address public router;
     address public masterChef;
     address public rewardsToken;
+    address[] public bridgeTokens;
     address public WETH;
 
     mapping(uint256 => address) public getStakedLPToken;
@@ -28,12 +29,14 @@ contract StakedLPTokenFactory0232 {
     constructor(
         address _router,
         address _masterChef,
-        address _rewardsToken
+        address _rewardsToken,
+        address[] memory _bridgeTokens
     ) public {
         router = _router;
         masterChef = _masterChef;
         rewardsToken = _rewardsToken;
         WETH = IRouter(_router).wNative();
+        bridgeTokens = _bridgeTokens;
     }
 
     function allStakedLPTokenLength() external view returns (uint) {
@@ -62,7 +65,8 @@ contract StakedLPTokenFactory0232 {
             router,
             masterChef,
             rewardsToken,
-            WETH
+            WETH,
+            bridgeTokens
         );
         getStakedLPToken[pid] = stakedLPToken;
         allStakedLPToken.push(stakedLPToken);
