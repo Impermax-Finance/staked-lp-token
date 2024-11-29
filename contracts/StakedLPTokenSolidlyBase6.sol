@@ -11,7 +11,7 @@ import "./interfaces/ISolidlyGauge3.sol";
 import "./libraries/SafeToken.sol";
 import "./libraries/Math.sol";
 
-// updated codebase for thena v2 and pearl
+// updated codebase for fenix
 
 contract StakedLPTokenSolidlyBase6 is PoolToken {
 	using SafeToken for address;
