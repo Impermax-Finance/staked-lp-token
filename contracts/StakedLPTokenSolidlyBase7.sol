@@ -17,7 +17,7 @@ contract StakedLPTokenSolidlyBase7 is PoolToken {
 	using SafeToken for address;
 	
 	bool public constant isStakedLPToken = true;
-	string public constant stakedLPTokenType = "SolidlyBase6";
+	string public constant stakedLPTokenType = "SolidlyBase7";
 	bool public constant stable = false;
 	
 	address public token0;
