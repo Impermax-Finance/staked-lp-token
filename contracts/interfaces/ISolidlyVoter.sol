@@ -12,4 +12,6 @@ interface ISolidlyVoter {
     function notifyRewardAmount(uint amount) external;
     function distribute(address _gauge) external;
     function gauges(address token) external view returns (address);
+    function poolToGauge(address token) external view returns (address);
+    function gaugeForPool(address token) external view returns (address);
 }
