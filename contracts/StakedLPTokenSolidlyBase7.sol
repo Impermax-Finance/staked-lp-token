@@ -11,13 +11,19 @@ import "./interfaces/ISolidlyGauge7.sol";
 import "./libraries/SafeToken.sol";
 import "./libraries/Math.sol";
 
+interface IXShadow {
+	function exit(
+    uint256 _amount
+  ) external returns (uint256 _exitedAmount);
+}
+
 // updated codebase for thena v2 and pearl
 
 contract StakedLPTokenSolidlyBase7 is PoolToken {
 	using SafeToken for address;
 	
 	bool public constant isStakedLPToken = true;
-	string public constant stakedLPTokenType = "SolidlyBase7";
+	string public constant stakedLPTokenType = "SolidlyBase6";
 	bool public constant stable = false;
 	
 	address public token0;
@@ -25,6 +31,7 @@ contract StakedLPTokenSolidlyBase7 is PoolToken {
 	address public router;
 	address public gauge;
 	address public rewardsToken;
+	address public rewardsToken1;
 	address[] public bridgeTokens;
 	uint256 public constant REINVEST_BOUNTY = 0.02e18;
 
@@ -37,6 +44,7 @@ contract StakedLPTokenSolidlyBase7 is PoolToken {
 		address _router,
 		address _voter,
 		address _rewardsToken,
+		address _rewardsToken1,
 		address[] calldata _bridgeTokens
 	) external {
 		require(factory == address(0), "StakedLPToken: FACTORY_ALREADY_SET"); // sufficient check
@@ -49,6 +57,7 @@ contract StakedLPTokenSolidlyBase7 is PoolToken {
 		gauge = ISolidlyVoter(_voter).gaugeForPool(_underlying);
 		require(gauge != address(0), "StakedLPToken: NO_GAUGE");
 		rewardsToken = _rewardsToken;
+		rewardsToken1 = _rewardsToken1;
 		bridgeTokens = _bridgeTokens;
 		_rewardsToken.safeApprove(address(_router), uint256(-1));
 		_underlying.safeApprove(address(gauge), uint256(-1));
@@ -123,11 +132,20 @@ contract StakedLPTokenSolidlyBase7 is PoolToken {
 		approveRouter(tokenB, amountB);
 		(,,liquidity) = IBaseV1Router02(router).addLiquidity(tokenA, tokenB, false, amountA, amountB, 0, 0, address(this), now);
 	}
+
+	function swapReward1ToReward() internal {
+		uint rewards1Balance = rewardsToken1.myBalance();
+		if(rewards1Balance > 0) {
+			IXShadow(rewardsToken1).exit(rewards1Balance);
+		}
+	}
 	
 	function _getReward() internal returns (uint256) {
-		address[] memory rewardTokens = new address[](1);
+		address[] memory rewardTokens = new address[](2);
 		rewardTokens[0] = rewardsToken;
+		rewardTokens[1] = rewardsToken1;
 		ISolidlyGauge7(gauge).getReward(address(this), rewardTokens);
+		swapReward1ToReward();
 		return rewardsToken.myBalance();
 	}
 	
