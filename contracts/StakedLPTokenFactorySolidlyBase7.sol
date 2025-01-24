@@ -10,6 +10,7 @@ contract StakedLPTokenFactorySolidlyBase7 {
 	address public router;
 	address public voter;
 	address public rewardsToken;
+	address public rewardsToken1;
 	address[] public bridgeTokens;
 
 	mapping(address => address) public getStakedLPToken;
@@ -17,10 +18,11 @@ contract StakedLPTokenFactorySolidlyBase7 {
 
 	event StakedLPTokenCreated(address indexed token0, address indexed token1, address indexed pair, address stakedLPToken, uint);
 
-	constructor(address _router, address _voter, address _rewardsToken, address[] memory _bridgeTokens) public {
+	constructor(address _router, address _voter, address _rewardsToken, address _rewardsToken1, address[] memory _bridgeTokens) public {
 		router = _router;
 		voter = _voter;
 		rewardsToken = _rewardsToken;
+		rewardsToken1 = _rewardsToken1;
 		bridgeTokens = _bridgeTokens;
 	}
 
@@ -37,7 +39,7 @@ contract StakedLPTokenFactorySolidlyBase7 {
 		assembly {
 			stakedLPToken := create2(0, add(bytecode, 32), mload(bytecode), pair)
 		}
-		StakedLPTokenSolidlyBase7(stakedLPToken)._initialize(pair, token0, token1, router, voter, rewardsToken, bridgeTokens);
+		StakedLPTokenSolidlyBase7(stakedLPToken)._initialize(pair, token0, token1, router, voter, rewardsToken, rewardsToken1, bridgeTokens);
 		getStakedLPToken[pair] = stakedLPToken;
 		allStakedLPToken.push(stakedLPToken);
 		emit StakedLPTokenCreated(token0, token1, pair, stakedLPToken, allStakedLPToken.length);
